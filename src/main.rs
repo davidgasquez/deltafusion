@@ -14,7 +14,7 @@ struct Args {
     to: u32,
 }
 
-// always returns 42
+/// Get the latest chain head
 fn get_chain_head() -> Result<u32, Box<dyn std::error::Error>> {
     let client = reqwest::blocking::Client::new();
     let data = r#"
