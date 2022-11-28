@@ -1,5 +1,5 @@
 {
-    "name": "rusting",
+    "name": "DeltaFusion",
     "build": {
         "dockerfile": "../Dockerfile"
     },
