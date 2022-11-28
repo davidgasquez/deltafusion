@@ -821,7 +821,8 @@ dependencies = [
 [[package]]
 name = "deltalake"
 version = "0.5.0"
-source = "git+https://github.com/delta-io/delta-rs#cf8488693f6dd003d2fb1fb4046f297ecdbd74e7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef78368f080a4b55cd7d5069c77ba6f7fd8d2e2984b09aaa6aa3bb2f23309743"
 dependencies = [
  "arrow 26.0.0",
  "async-trait",
@@ -1055,7 +1056,8 @@ dependencies = [
 [[package]]
 name = "glibc_version"
 version = "0.1.2"
-source = "git+https://github.com/delta-io/delta-rs#cf8488693f6dd003d2fb1fb4046f297ecdbd74e7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "803ff7635f1ab4e2c064b68a0c60da917d3d18dc8d086130f689d62ce4f1c33e"
 dependencies = [
  "regex",
 ]
