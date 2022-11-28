@@ -7,9 +7,8 @@ async fn main() {
     let table = deltalake::open_table("delta_table").await.unwrap();
 
     // Register the table with the context
-    match ctx.register_table("delta_table", Arc::new(table)) {
-        Ok(_) => println!("Table registered"),
-        Err(e) => println!("Error registering table: {}", e),
+    if let Err(e) = ctx.register_table("delta_table", Arc::new(table)) {
+        println!("Error registering table: {}", e);
     }
 
     // Run SQL query
