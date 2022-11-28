@@ -1,4 +1,4 @@
-# :crab: Deltafusion
+# :crab: DeltaFusion
 
 Learning Rust one commit at a time by mixing Datafusion with Delta Tables.
 
