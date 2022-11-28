@@ -1,47 +1,77 @@
-use clap::Parser;
-use serde_json::Value;
+use arrow::{
+    array::{Int32Array, StringArray},
+    datatypes::{DataType, Field, Schema as ArrowSchema},
+    record_batch::RecordBatch,
+};
+use deltalake::operations::collect_sendable_stream;
+use deltalake::{action::SaveMode, DeltaOps, SchemaDataType, SchemaField};
+use std::sync::Arc;
 
-/// Export Filecoin data from a remote Lotus node
-#[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
-struct Args {
-    /// Epoch to start the export from
-    #[clap(short, long, value_parser, default_value_t = 0)]
-    from: u32,
-
-    /// Epoch to end the export
-    #[clap(short, long, value_parser, default_value_t = 0)]
-    to: u32,
+fn get_table_columns() -> Vec<SchemaField> {
+    vec![
+        SchemaField::new(
+            String::from("int"),
+            SchemaDataType::primitive(String::from("integer")),
+            false,
+            Default::default(),
+        ),
+        SchemaField::new(
+            String::from("string"),
+            SchemaDataType::primitive(String::from("string")),
+            true,
+            Default::default(),
+        ),
+    ]
 }
 
-/// Get the latest chain head
-fn get_chain_head() -> Result<u32, Box<dyn std::error::Error>> {
-    let client = reqwest::blocking::Client::new();
-    let data = r#"
-        {
-            "jsonrpc": "2.0",
-            "method": "Filecoin.ChainHead",
-            "id": 1,
-            "params": []
-        }"#;
+fn get_table_batches() -> RecordBatch {
+    let schema = Arc::new(ArrowSchema::new(vec![
+        Field::new("int", DataType::Int32, false),
+        Field::new("string", DataType::Utf8, true),
+    ]));
 
-    // Parse the string of data into serde_json::Value.
-    let v: Value = serde_json::from_str(data).unwrap();
+    let int_values = Int32Array::from(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    let str_values = StringArray::from(vec!["A", "B", "A", "B", "A", "A", "A", "B", "B", "A", "A"]);
 
-    let res = client.post("https://api.node.glif.io").json(&v).send();
-
-    let json = res.unwrap().json::<Value>().unwrap();
-    Ok(json["result"]["Height"].as_u64().unwrap() as u32)
+    RecordBatch::try_new(schema, vec![Arc::new(int_values), Arc::new(str_values)]).unwrap()
 }
 
-fn main() {
-    let args = Args::parse();
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<(), deltalake::DeltaTableError> {
+    // Create a delta operations client pointing at an un-initialized in-memory location.
+    // In a production environment this would be created with "try_new" and point at
+    // a real storage location.
+    let ops = DeltaOps::new_in_memory();
 
-    // If both from and to are 0, start from the current chain head
-    if args.from == 0 && args.to == 0 {
-        println!("Following the chain from the current head");
-        println!("The chain head is: {}", get_chain_head().unwrap());
-    } else {
-        println!("Exporting from {} to {}", args.from, args.to)
-    }
+    // The operations module uses a builder pattern that allows specifying several options
+    // on how the command behaves. The builders implement `Into<Future>`, so once
+    // options are set you can run the command using `.await`.
+    let table = ops
+        .create()
+        .with_columns(get_table_columns())
+        .with_table_name("my_table")
+        .with_comment("A table to show how delta-rs works")
+        .await?;
+
+    assert_eq!(table.version(), 0);
+
+    let batch = get_table_batches();
+    let table = DeltaOps(table).write(vec![batch.clone()]).await?;
+
+    assert_eq!(table.version(), 1);
+
+    // To overwrite instead of append (which is the default), use `.with_save_mode`:
+    let table = DeltaOps(table)
+        .write(vec![batch.clone()])
+        .with_save_mode(SaveMode::Overwrite)
+        .await?;
+
+    assert_eq!(table.version(), 2);
+
+    let (_table, stream) = DeltaOps(table).load().await?;
+    let data: Vec<RecordBatch> = collect_sendable_stream(stream).await?;
+
+    println!("{:?}", data);
+
+    Ok(())
 }

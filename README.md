@@ -1,6 +1,6 @@
-# :crab: Rusting
+# :crab: Deltafusion
 
-Learning Rust one commit at a time.
+Learning Rust one commit at a time by mixing Datafusion with Delta Tables.
 
 ## :rocket: Getting Started
 
